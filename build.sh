@@ -11,9 +11,3 @@ python manage.py collectstatic --no-input
 
 # Apply any outstanding database migrations
 python manage.py migrate
-
-# Seed the database with initial data
-python manage.py seed_db
-
-# Seed the database with initial data (only if tables are empty)
-python manage.py seed_db || echo "Seeding failed or already seeded"
