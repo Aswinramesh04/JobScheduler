@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'corsheaders',
     'core',
 ]
@@ -85,13 +86,11 @@ WSGI_APPLICATION = 'taskscheduler.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default='postgresql://dbadmin:dbadmin@localhost:5432/empscheduler',
+        default='postgresql://dbadmin:dbadmin@localhost:5432/empscheduler1',
         conn_max_age=600,
         conn_health_checks=True,
     )
 }
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -147,11 +146,19 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    # Disable pagination so clients can fetch by id or get full lists without page numbers
+    'DEFAULT_PAGINATION_CLASS': None,
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'JobScheduler API',
+    'DESCRIPTION': 'APIs for managing supervisors, managers, employees, tasks and generating shift assignments.',
+    'VERSION': '1.0.0',
 }
 
 # CORS settings for API

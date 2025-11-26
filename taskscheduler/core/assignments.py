@@ -1,5 +1,5 @@
 from datetime import timedelta
-from core.models import Assignment, Employee, Manager, TaskRequirement
+from core.models import Assignment, Employee, Manager, TaskRequirement, DailyAttendance
 from django.utils.timezone import now
 from core.models import AssignmentFile
 
@@ -39,26 +39,38 @@ def count_task_assignments(shift, date, task):
 
 def generate_assignments(shift, date):
     today = date
-    managers = Manager.objects.filter(shift=shift).select_related('supervisor')
-    employees = Employee.objects.filter(shift=shift, status='present').select_related('supervisor')
-    
-    assignments = []
-    supervisor_to_manager = {m.supervisor.id: m for m in managers}
 
-    # Prepare task requirements for the shift
+    # Determine present employees for this date and shift using DailyAttendance
+    present_ids = DailyAttendance.objects.filter(date=today, status='present').values_list('employee_id', flat=True)
+    # Use correct FK field names after renaming: supervisor_id and manager_id
+    employees = (
+        Employee.objects
+        .filter(id__in=present_ids, shift=shift)
+        .select_related('supervisor_id', 'supervisor_id__manager_id')
+    )
+    assignments = []
+
+    # Prepare task requirements for the shift and date
+    # Prefer dated TaskRequirement rows; fallback to static defaults if none found
+    dated_reqs = list(TaskRequirement.objects.filter(shift=shift, date=today))
     tasks = []
-    counts = REQUIRED_COUNTS_BY_SHIFT.get(shift, [])
-    for task_name, count in zip(TASKS, counts):
-        tasks.append({'task': task_name, 'required_count': count})
+    if dated_reqs:
+        for r in dated_reqs:
+            tasks.append({'task': r.task, 'required_count': r.required_count})
+    else:
+        counts = REQUIRED_COUNTS_BY_SHIFT.get(shift, [])
+        for task_name, count in zip(TASKS, counts):
+            tasks.append({'task': task_name, 'required_count': count})
 
     supervisor_employees = {}
     for emp in employees:
-        if emp.supervisor:
-            supervisor_employees.setdefault(emp.supervisor.id, []).append(emp)
+        if emp.supervisor_id:
+            supervisor_employees.setdefault(emp.supervisor_id.id, []).append(emp)
 
     for sup_id, emp_list in supervisor_employees.items():
-        manager = supervisor_to_manager.get(sup_id)
-        if not manager:
+        # Derive manager from supervisor relation
+        manager = emp_list[0].supervisor_id.manager_id if emp_list and emp_list[0].supervisor_id else None
+        if not (manager and manager.shift == shift):
             continue
 
         for task in tasks:
@@ -82,9 +94,10 @@ def generate_assignments(shift, date):
             assigned_emps = eligible_emps[:slots_left]
 
             for emp in assigned_emps:
+                # emp.supervisor_id and emp.supervisor_id.manager_id are the correct related objects
                 a = Assignment.objects.create(
                     employee=emp,
-                    supervisor=emp.supervisor,
+                    supervisor=emp.supervisor_id,
                     manager=manager,
                     task=task['task'],
                     shift=shift,
@@ -94,17 +107,35 @@ def generate_assignments(shift, date):
                     "employee_id": emp.id,
                     "employee_name": emp.name,
                     "employee_type": emp.employee_type,
-                    "supervisor_id": emp.supervisor.id,
-                    "supervisor_name": emp.supervisor.name,
+                    "supervisor_id": emp.supervisor_id.id,
+                    "supervisor_name": emp.supervisor_id.name,
                     "manager_id": manager.id,
                     "manager_name": manager.name,
                     "task": task['task'],
                     "shift": shift,
                     "date": str(today)
                 })
-    save_assignments_file(date, shift, assignments)            
+    save_assignments_file(date, shift, assignments)
 
-    return assignments
+    # Compute summary information: total required and present employees
+    # Total required employees is the sum of required_count for dated requirements
+    # or, if using static defaults, the sum of the static counts
+    dated_reqs = list(TaskRequirement.objects.filter(shift=shift, date=today))
+    if dated_reqs:
+        min_required = sum(r.required_count for r in dated_reqs)
+    else:
+        counts = REQUIRED_COUNTS_BY_SHIFT.get(shift, [])
+        min_required = sum(counts)
+
+    present_count = employees.count()
+
+    return {
+        'date': str(today),
+        'shift': shift,
+        'min_employees_required': min_required,
+        'present_employees': present_count,
+        'assignments': assignments,
+    }
 
 def save_assignments_file(date, shift, assignments):
     file_name = f"assignments_{date.strftime('%Y-%m-%d')}_{shift}.json"
