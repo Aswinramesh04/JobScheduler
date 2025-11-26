@@ -31,74 +31,10 @@
 #         ])
 
 from django.core.management.base import BaseCommand
-from core.models import Employee, Manager, Supervisor, TaskRequirement
-import random
 
-SKILLS = [
-    "Scanning", "Pushing", "Unloading", "Electric pallet truck", "Incoming/outgoing goods",
-    "Shipping/handling", "DG Check", "DG Setup", "Forklift Setup", "NCY Loading",
-    "Forklift Transport", "Mulli", "Truck Loading", "Coupling"
-]
-SHIFTS = ["morning", "afternoon", "night"]
-STATUSES = ["present", "sick", "vacation", "seminar", "leave"]
-PLACES = ["A", "B", "C", "D"]
-
-REQUIRED_COUNTS_BY_SHIFT = {
-    'morning': [8,7,6,5,7,8,6,7,6,5,6,5,7,6],
-    'afternoon': [6,5,7,6,5,6,5,7,8,7,8,6,5,7],
-    'night': [5,6,5,7,6,5,7,8,7,6,5,7,8,6],
-}
 
 class Command(BaseCommand):
-    help = 'Seed supervisors, managers, employees, and tasks'
+    help = 'Deprecated: seeding is disabled. Use the API endpoints to create real data.'
 
     def handle(self, *args, **options):
-        Employee.objects.all().delete()
-        Manager.objects.all().delete()
-        Supervisor.objects.all().delete()
-        TaskRequirement.objects.all().delete()
-
-        # Create supervisors
-        supervisors = []
-        for i in range(5):
-            sup = Supervisor.objects.create(
-                name=f"Supervisor {i+1}",
-                place_work=random.choice(PLACES),
-                shift=random.choice(SHIFTS)
-            )
-            supervisors.append(sup)
-
-        # Create one manager per supervisor
-        managers = []
-        for sup in supervisors:
-            mgr = Manager.objects.create(
-                name=f"Manager for {sup.name}",
-                shift=sup.shift,
-                supervisor=sup
-            )
-            managers.append(mgr)
-
-        # Create employees linked to random supervisors
-        for i in range(100):
-            sup = random.choice(supervisors)
-            Employee.objects.create(
-                name=f"Employee {i+1}",
-                skills=random.sample(SKILLS, k=random.randint(2, 4)),
-                shift=sup.shift,
-                employee_type=random.choice(["permanent", "temporary", "contract"]),
-                supervisor=sup,
-                status=random.choices(STATUSES, weights=[8,1,1,1,1], k=1)[0]
-            )
-
-        # Create task requirements for all shifts and tasks
-        for shift in SHIFTS:
-            taskobjs = []
-            for task_name, count in zip(SKILLS, REQUIRED_COUNTS_BY_SHIFT[shift]):
-                taskobjs.append(TaskRequirement(
-                    task=task_name,
-                    required_count=count,
-                    shift=shift
-                ))
-            TaskRequirement.objects.bulk_create(taskobjs)
-
-        self.stdout.write(self.style.SUCCESS('Database seeded with supervisors, managers, employees, and tasks'))
+        self.stdout.write(self.style.WARNING('seed_db is deprecated and does nothing. Create data via /api endpoints.'))
