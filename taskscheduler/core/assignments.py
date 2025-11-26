@@ -42,7 +42,12 @@ def generate_assignments(shift, date):
 
     # Determine present employees for this date and shift using DailyAttendance
     present_ids = DailyAttendance.objects.filter(date=today, status='present').values_list('employee_id', flat=True)
-    employees = Employee.objects.filter(id__in=present_ids, shift=shift).select_related('supervisor', 'supervisor__manager')
+    # Use correct FK field names after renaming: supervisor_id and manager_id
+    employees = (
+        Employee.objects
+        .filter(id__in=present_ids, shift=shift)
+        .select_related('supervisor_id', 'supervisor_id__manager_id')
+    )
     assignments = []
 
     # Prepare task requirements for the shift and date
@@ -59,12 +64,12 @@ def generate_assignments(shift, date):
 
     supervisor_employees = {}
     for emp in employees:
-        if emp.supervisor:
-            supervisor_employees.setdefault(emp.supervisor.id, []).append(emp)
+        if emp.supervisor_id:
+            supervisor_employees.setdefault(emp.supervisor_id.id, []).append(emp)
 
     for sup_id, emp_list in supervisor_employees.items():
         # Derive manager from supervisor relation
-        manager = emp_list[0].supervisor.manager if emp_list and emp_list[0].supervisor else None
+        manager = emp_list[0].supervisor_id.manager_id if emp_list and emp_list[0].supervisor_id else None
         if not (manager and manager.shift == shift):
             continue
 
@@ -89,9 +94,10 @@ def generate_assignments(shift, date):
             assigned_emps = eligible_emps[:slots_left]
 
             for emp in assigned_emps:
+                # emp.supervisor_id and emp.supervisor_id.manager_id are the correct related objects
                 a = Assignment.objects.create(
                     employee=emp,
-                    supervisor=emp.supervisor,
+                    supervisor=emp.supervisor_id,
                     manager=manager,
                     task=task['task'],
                     shift=shift,
@@ -101,8 +107,8 @@ def generate_assignments(shift, date):
                     "employee_id": emp.id,
                     "employee_name": emp.name,
                     "employee_type": emp.employee_type,
-                    "supervisor_id": emp.supervisor.id,
-                    "supervisor_name": emp.supervisor.name,
+                    "supervisor_id": emp.supervisor_id.id,
+                    "supervisor_name": emp.supervisor_id.name,
                     "manager_id": manager.id,
                     "manager_name": manager.name,
                     "task": task['task'],

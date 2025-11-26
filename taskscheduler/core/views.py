@@ -68,7 +68,7 @@ class EmployeeViewSet(mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       mixins.CreateModelMixin,
                       viewsets.GenericViewSet):
-    queryset = Employee.objects.select_related('supervisor').all().order_by('id')
+    queryset = Employee.objects.select_related('supervisor_id').all().order_by('id')
     serializer_class = EmployeeSerializer
     permission_classes = [permissions.AllowAny]
     http_method_names = ['get', 'post']
@@ -104,12 +104,85 @@ class DailyAttendanceViewSet(mixins.ListModelMixin,
             qs = qs.filter(employee_id=employee_id)
         return qs
 
+    # @action(detail=False, methods=['post'], url_path='bulk')
+    # def bulk(self, request):
+    #     """Create DailyAttendance rows (status=present) for all employees for a given date."""
+        # date_str = request.data.get('date')
+        # if not date_str:
+        #     return Response({'error': 'date is required (YYYY-MM-DD)'}, status=400)
+    # @action(detail=False, methods=['get'], url_path='summary')
+    # def summary(self, request):
+    #     """Return counts of attendance statuses for a given date."""
+    #     date_str = request.query_params.get('date')
+    #     if not date_str:
+    #         return Response({'error': 'date is required (YYYY-MM-DD)'}, status=400)
+    #     try:
+    #         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    #     except ValueError:
+    #         return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+
+    #     qs = DailyAttendance.objects.filter(date=target_date)
+
+    #     total_employees = qs.count()
+    #     counts = {key: qs.filter(status=key).count() for key, _ in DailyAttendance.STATUS_CHOICES}
+
+    #     data = {
+    #         'date': target_date,
+    #         'total_employees': total_employees,
+    #         **counts,
+    #     }
+
+    #     serializer = DailyAttendanceSummarySerializer(data)
+    #     return Response(serializer.data)
+    #     try:
+    #         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    #     except ValueError:
+    #         return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+
+    #     employees = Employee.objects.all()
+    #     created_count = 0
+
+    #     for emp in employees:
+    #         _, created = DailyAttendance.objects.get_or_create(
+    #             employee=emp,
+    #             date=target_date,
+    #             defaults={'status': 'present'},
+    #         )
+    #         if created:
+    #             created_count += 1
+
+    #     return Response({
+    #         'date': str(target_date),
+    #         'created_count': created_count,
+    #     })
     @action(detail=False, methods=['post'], url_path='bulk')
     def bulk(self, request):
         """Create DailyAttendance rows (status=present) for all employees for a given date."""
         date_str = request.data.get('date')
         if not date_str:
             return Response({'error': 'date is required (YYYY-MM-DD)'}, status=400)
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+
+        employees = Employee.objects.all()
+        created_count = 0
+
+        for emp in employees:
+            _, created = DailyAttendance.objects.get_or_create(
+                employee=emp,
+                date=target_date,
+                defaults={'status': 'present'},
+            )
+            if created:
+                created_count += 1
+
+        return Response({
+            'date': str(target_date),
+            'created_count': created_count,
+        })
+    
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
         """Return counts of attendance statuses for a given date."""
@@ -134,27 +207,6 @@ class DailyAttendanceViewSet(mixins.ListModelMixin,
 
         serializer = DailyAttendanceSummarySerializer(data)
         return Response(serializer.data)
-        try:
-            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
-            return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
-
-        employees = Employee.objects.all()
-        created_count = 0
-
-        for emp in employees:
-            _, created = DailyAttendance.objects.get_or_create(
-                employee=emp,
-                date=target_date,
-                defaults={'status': 'present'},
-            )
-            if created:
-                created_count += 1
-
-        return Response({
-            'date': str(target_date),
-            'created_count': created_count,
-        })
 
 
 class DailyAttendanceMarkView(APIView):
@@ -194,6 +246,5 @@ class DailyAttendanceMarkView(APIView):
 class DailyAttendanceSummaryView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    """Deprecated: kept only to avoid import errors; router-based summary is on DailyAttendanceViewSet.summary."""
     def get(self, request):
         return Response({'detail': 'Use /api/attendance/summary/?date=YYYY-MM-DD instead.'}, status=404)

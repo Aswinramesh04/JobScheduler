@@ -3,9 +3,9 @@ from .models import Employee, Manager, Supervisor, TaskRequirement, DailyAttenda
 
 
 class SupervisorSerializer(serializers.ModelSerializer):
-    manager = serializers.PrimaryKeyRelatedField(
-        queryset=Manager.objects.all(), allow_null=True, required=False
-    )
+    # manager = serializers.PrimaryKeyRelatedField(
+    #     queryset=Manager.objects.all(), allow_null=True, required=False
+    # )
     class Meta:
         model = Supervisor
         fields = '__all__'
@@ -16,17 +16,17 @@ class ManagerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class EmployeeSerializer(serializers.ModelSerializer):
-    # Represent supervisor by id but allow nested read of basic info if needed later
-    supervisor = serializers.PrimaryKeyRelatedField(
-        queryset=Supervisor.objects.all(), allow_null=True, required=False
-    )
+
+    # supervisor = serializers.PrimaryKeyRelatedField(
+    #     queryset=Supervisor.objects.all(), allow_null=True, required=False
+    # )
 
     class Meta:
         model = Employee
         fields = '__all__'
 
     def validate_skills(self, value):
-        """Ensure skills is either a list of strings or a dict of string->bool."""
+       
         if isinstance(value, list):
             if not all(isinstance(v, str) for v in value):
                 raise serializers.ValidationError("Each skill must be a string.")
@@ -56,4 +56,3 @@ class DailyAttendanceSummarySerializer(serializers.Serializer):
     sick = serializers.IntegerField()
     vacation = serializers.IntegerField()
     seminar = serializers.IntegerField()
-    leave = serializers.IntegerField()
