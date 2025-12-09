@@ -162,7 +162,13 @@ SPECTACULAR_SETTINGS = {
 }
 
 # CORS settings for API
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_ALL_ORIGINS = False
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://jobschedulernew.onrender.com",
+]
+
 CORS_ALLOWED_HEADERS = [
     'accept',
     'accept-encoding',
