@@ -164,6 +164,7 @@ SPECTACULAR_SETTINGS = {
 # CORS settings for API
 CORS_ALLOW_ALL_ORIGINS = False
 
+# Explicitly allow local frontend and deployed frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://jobschedulernew.onrender.com",
@@ -180,11 +181,6 @@ CORS_ALLOWED_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-
-if not DEBUG:
-    CORS_ALLOWED_ORIGINS = [
-        f"https://{host}" for host in ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']
-    ]
 
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
